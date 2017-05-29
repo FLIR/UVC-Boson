@@ -45,7 +45,7 @@ public class UVCCamera {
 	private static final String DEFAULT_USBFS = "/dev/bus/usb";
 
 	public static final int DEFAULT_PREVIEW_WIDTH = 640;
-	public static final int DEFAULT_PREVIEW_HEIGHT = 480;
+	public static final int DEFAULT_PREVIEW_HEIGHT = 512; //480; jimk
 	public static final int DEFAULT_PREVIEW_MODE = 0;
 	public static final int DEFAULT_PREVIEW_MIN_FPS = 1;
 	public static final int DEFAULT_PREVIEW_MAX_FPS = 30;
