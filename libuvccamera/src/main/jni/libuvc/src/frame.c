@@ -567,14 +567,15 @@ uvc_error_t uvc_yuyv2rgb565(uvc_frame_t *in, uvc_frame_t *out) {
 	IYUYV2RGBX_2(pyuv, prgbx, ax, bx) \
 	IYUYV2RGBX_2(pyuv, prgbx, ax + PIXEL2_YUYV, bx + PIXEL2_RGBX);
 
+
 /** @brief Convert a frame from YUYV to RGBX8888
  * @ingroup frame
  * @param ini YUYV frame
  * @param out RGBX8888 frame
  */
 uvc_error_t uvc_yuyv2rgbx(uvc_frame_t *in, uvc_frame_t *out) {
-	if (UNLIKELY(in->frame_format != UVC_FRAME_FORMAT_YUYV))
-		return UVC_ERROR_INVALID_PARAM;
+	//if (UNLIKELY(in->frame_format != UVC_FRAME_FORMAT_YUYV))   // jimk
+	//	return UVC_ERROR_INVALID_PARAM;
 
 	if (UNLIKELY(uvc_ensure_frame_size(out, in->width * in->height * PIXEL_RGBX) < 0))
 		return UVC_ERROR_NO_MEM;
@@ -630,6 +631,72 @@ uvc_error_t uvc_yuyv2rgbx(uvc_frame_t *in, uvc_frame_t *out) {
 #endif
 	return UVC_SUCCESS;
 }
+
+// jimk, boson
+
+/** @brief Convert a frame from I420 format to RGBX8888
+ * @ingroup frame
+ * @param ini YUYV frame
+ * @param out RGBX8888 frame
+ */
+uvc_error_t uvc_i4202rgbx(uvc_frame_t *in, uvc_frame_t *out) {
+	//if (UNLIKELY(in->frame_format != UVC_FRAME_FORMAT_YUYV))   // jimk
+	//	return UVC_ERROR_INVALID_PARAM;
+
+	if (UNLIKELY(uvc_ensure_frame_size(out, in->width * in->height * PIXEL_RGBX) < 0))
+		return UVC_ERROR_NO_MEM;
+
+	out->width = in->width;
+	out->height = in->height;
+	out->frame_format = UVC_FRAME_FORMAT_RGBX;
+	if (out->library_owns_data)
+		out->step = in->width * PIXEL_RGBX;
+	out->sequence = in->sequence;
+	out->capture_time = in->capture_time;
+	out->source = in->source;
+
+	uint8_t *pyuv = in->data;
+	uint8_t *prgbx = out->data;
+
+	// i420 => RGBX8888
+    const int hh = in->height < out->height ? in->height : out->height;
+    const int ww = in->width < out->width ? in->width : out->width;
+
+    int step = in->width * 1; //in->step;
+    int size = hh * ww;
+
+    int i, j;
+    for (i = 0; i < hh; i++) {
+        prgbx = out->data + out->step * i;
+        for (j = 0;  j < ww; j++)  {
+
+            float Y = pyuv[i * step + j];
+            float U = pyuv[ (int)(size + (i/2)*(step/2)  + j/2) ];
+            float V = pyuv[ (int)(size*1.25 + (i/2)*(step/2) + j/2)];
+
+            float R = Y + 1.402 * (V - 128);
+            float G = Y - 0.344 * (U - 128) - 0.714 * (V - 128);
+            float B = Y + 1.772 * (U - 128);
+
+            if (R < 0){ R = 0; } if (G < 0){ G = 0; } if (B < 0){ B = 0; }
+            if (R > 255 ){ R = 255; } if (G > 255) { G = 255; } if (B > 255) { B = 255; }
+
+            prgbx[0] = R;
+            prgbx[1] = G;
+            prgbx[2] = B;
+            prgbx[3] = 255;
+
+            prgbx += 4;
+        }
+    }
+
+
+	return UVC_SUCCESS;
+}
+
+
+
+
 
 #define IYUYV2BGR_2(pyuv, pbgr, ax, bx) { \
 		const int d1 = (pyuv)[1]; \
@@ -912,8 +979,9 @@ uvc_error_t uvc_uyvy2rgb565(uvc_frame_t *in, uvc_frame_t *out) {
  * @param out RGBX8888 frame
  */
 uvc_error_t uvc_uyvy2rgbx(uvc_frame_t *in, uvc_frame_t *out) {
-	if (UNLIKELY(in->frame_format != UVC_FRAME_FORMAT_UYVY))
-		return UVC_ERROR_INVALID_PARAM;
+
+//	if (UNLIKELY(in->frame_format != UVC_FRAME_FORMAT_UYVY))   // jimk
+//		return UVC_ERROR_INVALID_PARAM;
 
 	if (UNLIKELY(uvc_ensure_frame_size(out, in->width * in->height * PIXEL_RGBX) < 0))
 		return UVC_ERROR_NO_MEM;
@@ -1331,6 +1399,10 @@ uvc_error_t uvc_any2rgbx(uvc_frame_t *in, uvc_frame_t *out) {
 		return uvc_duplicate_frame(in, out);
 	case UVC_FRAME_FORMAT_RGB:
 		return uvc_rgb2rgbx(in, out);
+
+	case	UVC_FRAME_FORMAT_I420:   //   jimk
+		return uvc_i4202rgbx(in, out);
+
 	default:
 		return UVC_ERROR_NOT_SUPPORTED;
 	}
