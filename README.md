@@ -1,3 +1,32 @@
+FLIR Boson UVCCamera Repository
+===============================
+
+Updated UVC Camera for live capture of a FLIR Boson camera over USB.
+
+Changes by Jim K to run CameraTest3 sucessfully on a Google Pixel phone:
+
+ - Added I420 format option to stream.c
+
+   src/main/jni/libuvc/src/stream.c
+
+	FMT(UVC_FRAME_FORMAT_I420,  // jimk
+		{'I', '4', '2', '0', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
+
+- Added I420 to RGB conversion to frame.c
+
+    src/main/jni/libuvc/src/frame.c
+ 
+- Change default frame height to 512 in UVCPreview.h
+ 
+    src/main/jni/UVCCamera/UVCPreview.h
+
+- Change PREVIEW_HEIGHT to 512 in mainActivity.java
+
+    usbCameraTest3/src/main/java/com/serenegiant/usbcameratest3/MainActivity.java
+
+
+
+
 UVCCamera
 =========
 
