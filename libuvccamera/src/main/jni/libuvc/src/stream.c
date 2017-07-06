@@ -42,10 +42,10 @@
  * @brief Tools for creating, managing and consuming video streams
  */
 
-#define LOCAL_DEBUG 0
+#define LOCAL_DEBUG 1
 
 #define LOG_TAG "libuvc/stream"
-#if 1	// デバッグ情報を出さない時1
+#if 0	// デバッグ情報を出さない時1
 	#ifndef LOG_NDEBUG
 		#define	LOG_NDEBUG		// LOGV/LOGD/MARKを出力しない時
 		#endif
@@ -93,6 +93,9 @@ struct format_table_entry *_get_format_entry(enum uvc_frame_format format) {
 
 	switch (format) {
 	/* Define new formats here */
+	FMT(UVC_FRAME_FORMAT_I420,  // jimk
+		{'I', '4', '2', '0', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
+
 	ABS_FMT(UVC_FRAME_FORMAT_ANY,
 		{UVC_FRAME_FORMAT_UNCOMPRESSED, UVC_FRAME_FORMAT_COMPRESSED})
 
@@ -126,8 +129,13 @@ static uint8_t _uvc_frame_format_matches_guid(enum uvc_frame_format fmt,
 	int child_idx;
 
 	format = _get_format_entry(fmt);
-	if (UNLIKELY(!format))
+	if (UNLIKELY(!format)) {
+	    UVC_DEBUG(" fails first _uvc_frame_format_matches_guid");
 		return 0;
+		}
+
+	for(int i = 0; i < 16; i++)
+	    UVC_DEBUG(" guid %d %d", guid[i], format->guid[i]);
 
 	if (!format->abstract_fmt && !memcmp(guid, format->guid, 16))
 		return 1;
@@ -136,6 +144,8 @@ static uint8_t _uvc_frame_format_matches_guid(enum uvc_frame_format fmt,
 		if (_uvc_frame_format_matches_guid(format->children[child_idx], guid))
 			return 1;
 	}
+
+	UVC_DEBUG(" fall through _uvc_frame_format_matches_guid");
 
 	return 0;
 }
@@ -538,6 +548,7 @@ uvc_error_t uvc_get_stream_ctrl_format_size_fps(uvc_device_handle_t *devh,
 		int height, int min_fps, int max_fps) {
 
 	ENTER();
+	UVC_DEBUG("*** uvc_get_stream_ctrl_format_size_fps  " );
 
 	uvc_streaming_interface_t *stream_if;
 	uvc_error_t result;
@@ -547,12 +558,16 @@ uvc_error_t uvc_get_stream_ctrl_format_size_fps(uvc_device_handle_t *devh,
 	uvc_format_desc_t *format;
 	DL_FOREACH(devh->info->stream_ifs, stream_if)
 	{
+	    UVC_DEBUG("*** stream_if" );
 		DL_FOREACH(stream_if->format_descs, format)
 		{
-			if (!_uvc_frame_format_matches_guid(cf, format->guidFormat))
-				continue;
-
+    	    UVC_DEBUG("*** format" );
+			if (!_uvc_frame_format_matches_guid(cf, format->guidFormat)) {
+	UVC_DEBUG("*** ! _uvc_frame_format_matches_guid  " );
+				//continue;
+				}
 			result = _uvc_get_stream_ctrl_format(devh, stream_if, ctrl, format, width, height, min_fps, max_fps);
+	UVC_DEBUG("*** _uvc_get_stream_ctrl_format  result %d", result);
 			if (!result) {	// UVC_SUCCESS
 				goto found;
 			}
@@ -1302,6 +1317,7 @@ uvc_error_t uvc_stream_open_ctrl(uvc_device_handle_t *devh,
 	uvc_error_t ret;
 
 	UVC_ENTER();
+	UVC_DEBUG("uvc_stream_open_ctrl");
 
 	if (UNLIKELY(_uvc_get_stream_by_interface(devh, ctrl->bInterfaceNumber) != NULL)) {
 		ret = UVC_ERROR_BUSY; /* Stream is already opened */
@@ -1395,6 +1411,8 @@ uvc_error_t uvc_stream_start_bandwidth(uvc_stream_handle_t *strmh,
 	ctrl = &strmh->cur_ctrl;
 
 	UVC_ENTER();
+
+	UVC_DEBUG("uvc_stream_start_bandwidth");
 
 	if (UNLIKELY(strmh->running)) {
 		UVC_EXIT(UVC_ERROR_BUSY);
@@ -1719,6 +1737,8 @@ uvc_error_t uvc_stream_get_frame(uvc_stream_handle_t *strmh,
 	struct timespec ts;
 	struct timeval tv;
 
+	UVC_DEBUG("uvc_stream_get_frame");
+
 	if (UNLIKELY(!strmh->running))
 		return UVC_ERROR_INVALID_PARAM;
 
@@ -1766,6 +1786,8 @@ uvc_error_t uvc_stream_get_frame(uvc_stream_handle_t *strmh,
 		}
 	}
 	pthread_mutex_unlock(&strmh->cb_mutex);
+
+	UVC_DEBUG("uvc_stream_get_frame return success");
 
 	return UVC_SUCCESS;
 }
@@ -1862,7 +1884,7 @@ uvc_error_t uvc_stream_stop(uvc_stream_handle_t *strmh) {
 void uvc_stream_close(uvc_stream_handle_t *strmh) {
 	UVC_ENTER();
 
-	if (!strmh) { UVC_EXIT_VOID() };
+	if (!strmh) { UVC_EXIT_VOID(); };
 
 	if (strmh->running)
 		uvc_stream_stop(strmh);
