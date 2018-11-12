@@ -137,7 +137,7 @@ static uint8_t _uvc_frame_format_matches_guid(enum uvc_frame_format fmt,
 		}
 
 	for(int i = 0; i < 16; i++)
-	    UVC_DEBUG(" guid %d %d", guid[i], format->guid[i]);
+	    UVC_DEBUG(" guid %02x %02x", guid[i], format->guid[i]);
 
 	if (!format->abstract_fmt && !memcmp(guid, format->guid, 16))
 		return 1;
