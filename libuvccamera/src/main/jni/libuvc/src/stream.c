@@ -1738,6 +1738,7 @@ uvc_error_t uvc_stream_get_frame(uvc_stream_handle_t *strmh,
 	time_t add_nsecs;
 	struct timespec ts;
 	struct timeval tv;
+	int res;
 
 	UVC_DEBUG("uvc_stream_get_frame");
 
@@ -1772,8 +1773,13 @@ uvc_error_t uvc_stream_get_frame(uvc_stream_handle_t *strmh,
 
 				ts.tv_sec += add_secs;
 				ts.tv_nsec += add_nsecs;
-
-				pthread_cond_timedwait(&strmh->cb_cond, &strmh->cb_mutex, &ts);
+				while (ts.tv_nsec > 1000*1000*1000) {
+					ts.tv_nsec -= 1000*1000*1000;
+					ts.tv_sec++;
+				}
+				do {
+					res = pthread_cond_timedwait(&strmh->cb_cond, &strmh->cb_mutex, &ts);
+				} while (res == 0 && strmh->last_polled_seq == strmh->hold_seq);
 			}
 
 			if (LIKELY(strmh->last_polled_seq < strmh->hold_seq)) {
