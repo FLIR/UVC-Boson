@@ -104,6 +104,7 @@ enum uvc_frame_format {
 	/** Motion-JPEG (or JPEG) encoded images */
 	UVC_FRAME_FORMAT_MJPEG,
 	UVC_FRAME_FORMAT_GRAY8,
+	UVC_FRAME_FORMAT_GRAY16,
 	UVC_FRAME_FORMAT_BY8,
 
 	UVC_FRAME_FORMAT_I420, // jimk
@@ -125,6 +126,7 @@ enum uvc_frame_format {
 #define UVC_COLOR_FORMAT_RGBX UVC_FRAME_FORMAT_RGBX		// XXX
 #define UVC_COLOR_FORMAT_MJPEG UVC_FRAME_FORMAT_MJPEG
 #define UVC_COLOR_FORMAT_GRAY8 UVC_FRAME_FORMAT_GRAY8
+#define UVC_COLOR_FORMAT_GRAY16 UVC_FRAME_FORMAT_GRAY16
 
 /** VideoStreaming interface descriptor subtype (A.6) */
 enum uvc_vs_desc_subtype {

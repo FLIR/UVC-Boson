@@ -93,22 +93,24 @@ struct format_table_entry *_get_format_entry(enum uvc_frame_format format) {
 
 	switch (format) {
 	/* Define new formats here */
-	FMT(UVC_FRAME_FORMAT_I420,  // jimk
-		{'I', '4', '2', '0', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
 
 	ABS_FMT(UVC_FRAME_FORMAT_ANY,
 		{UVC_FRAME_FORMAT_UNCOMPRESSED, UVC_FRAME_FORMAT_COMPRESSED})
 
 	ABS_FMT(UVC_FRAME_FORMAT_UNCOMPRESSED,
-		{UVC_FRAME_FORMAT_YUYV, UVC_FRAME_FORMAT_UYVY, UVC_FRAME_FORMAT_GRAY8})
+		{UVC_FRAME_FORMAT_YUYV, UVC_FRAME_FORMAT_UYVY, UVC_FRAME_FORMAT_I420, UVC_FRAME_FORMAT_GRAY8, UVC_FRAME_FORMAT_GRAY16})
 	FMT(UVC_FRAME_FORMAT_YUYV,
 		{'Y', 'U', 'Y', '2', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
 	FMT(UVC_FRAME_FORMAT_UYVY,
 		{'U', 'Y', 'V', 'Y', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
+	FMT(UVC_FRAME_FORMAT_I420,
+		{'I', '4', '2', '0', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
 	FMT(UVC_FRAME_FORMAT_GRAY8,
 		{'Y', '8', '0', '0', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
-    FMT(UVC_FRAME_FORMAT_BY8,
-    	{'B', 'Y', '8', ' ', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
+	FMT(UVC_FRAME_FORMAT_GRAY16,
+		{'Y',  '1',  '6',  ' ', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
+	FMT(UVC_FRAME_FORMAT_BY8,
+		{'B', 'Y', '8', ' ', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
 
 	ABS_FMT(UVC_FRAME_FORMAT_COMPRESSED,
 		{UVC_FRAME_FORMAT_MJPEG})
@@ -135,7 +137,7 @@ static uint8_t _uvc_frame_format_matches_guid(enum uvc_frame_format fmt,
 		}
 
 	for(int i = 0; i < 16; i++)
-	    UVC_DEBUG(" guid %d %d", guid[i], format->guid[i]);
+	    UVC_DEBUG(" guid %02x %02x", guid[i], format->guid[i]);
 
 	if (!format->abstract_fmt && !memcmp(guid, format->guid, 16))
 		return 1;
@@ -564,7 +566,7 @@ uvc_error_t uvc_get_stream_ctrl_format_size_fps(uvc_device_handle_t *devh,
     	    UVC_DEBUG("*** format" );
 			if (!_uvc_frame_format_matches_guid(cf, format->guidFormat)) {
 	UVC_DEBUG("*** ! _uvc_frame_format_matches_guid  " );
-				//continue;
+				continue;
 				}
 			result = _uvc_get_stream_ctrl_format(devh, stream_if, ctrl, format, width, height, min_fps, max_fps);
 	UVC_DEBUG("*** _uvc_get_stream_ctrl_format  result %d", result);
@@ -1736,6 +1738,7 @@ uvc_error_t uvc_stream_get_frame(uvc_stream_handle_t *strmh,
 	time_t add_nsecs;
 	struct timespec ts;
 	struct timeval tv;
+	int res;
 
 	UVC_DEBUG("uvc_stream_get_frame");
 
@@ -1770,8 +1773,13 @@ uvc_error_t uvc_stream_get_frame(uvc_stream_handle_t *strmh,
 
 				ts.tv_sec += add_secs;
 				ts.tv_nsec += add_nsecs;
-
-				pthread_cond_timedwait(&strmh->cb_cond, &strmh->cb_mutex, &ts);
+				while (ts.tv_nsec > 1000*1000*1000) {
+					ts.tv_nsec -= 1000*1000*1000;
+					ts.tv_sec++;
+				}
+				do {
+					res = pthread_cond_timedwait(&strmh->cb_cond, &strmh->cb_mutex, &ts);
+				} while (res == 0 && strmh->last_polled_seq == strmh->hold_seq);
 			}
 
 			if (LIKELY(strmh->last_polled_seq < strmh->hold_seq)) {
